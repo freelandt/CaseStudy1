@@ -1,0 +1,53 @@
+---
+title: "Evaluating Causes of High Blood Pressure in Nurses"
+author: "Trevor Freeland"
+date: "April 25, 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment = NA, message = F, warning = F, fig.height = 4)
+```
+
+```{r Libraries}
+library(tidyverse)
+library(lme4)
+```
+
+```{r Data Read}
+nurses <- read.csv("http://math.carleton.edu/Chihara/Stats345/nursebp.csv")
+```
+
+##Question
+
+UCLA Nurse Blood Pressure Study.
+ 
+Using systolic blood pressure as the primary response, write a short report detailing factors that are significantly associated with higher systolic blood pressure. Be sure to support your conclusions with appropriate exploratory plots and multilevel models. In particular, how are work conditions—activity level, mood, and work status—related to trends in blood pressure levels? As an appendix to your report, describe your modeling process—how did you arrive at your final model, which covariates are Level One or Level Two covariates, what did you learn from exploratory plots, etc.
+
+
+##Introduction
+
+##Methods
+
+ A study by Goldstein and Shapiro (2000) collected information from 203 registered nurses in the Los Angeles area between 24 and 50 years of age on blood pressure and potential factors that contribute to hypertension. This information includes family history, including whether the subject had one or two hypertensive parents, as well as a wide range of measures of the physical and emotional condition of each nurse throughout the day. Researchers sought to study the links between blood pressure and family history, personality, mood changes, working status, and menstrual phase.
+ 
+Data from this study provided by Weiss (2005) includes observations (40-60 per nurse) repeatedly taken on the 203 nurses over the course of a single day. The first blood pressure measurement was taken half an hour before the subject’s normal start of work, and was measured approximately every 20 minutes for the rest of the day. At each blood pressure reading, the nurses also rate their mood on several dimensions, including how stressed they feel at the moment the blood pressure is taken. In addition, the activity of each subject during the 10 minutes before each reading was measured using an actigraph worn on the waist. Each of the variables is described below:
+
+SNUM: subject identification number  
+SYS: systolic blood pressure (mmHg)  
+DIA: diastolic blood pressure (mmHg)  
+HRT: heart rate (beats per minute)  
+MNACT5: activity level (frequency of movements in 1-minute intervals, over a 10-minute period )  
+PHASE: menstrual phase (follicular—beginning with the end of menstruation and ending with ovulation, or luteal—beginning with ovulation and ending with pregnancy or menstruation)  
+DAY: workday or non-workday  
+POSTURE: position during blood pressure measurement—either sitting, standing, or reclining  
+STR, HAP, TIR: self-ratings by each nurse of their level of stress, happiness and tiredness at the time of each blood pressure measurement on a 5-point scale, with 5 being the strongest sensation of that feeling and 1 the weakest  
+AGE: age in years  
+FH123: coded as either NO (no family history of hypertension), YES (1 hypertensive parent), or YESYES (both parents hypertensive)  
+time: in minutes from midnight  
+timept: number of the measurement that day (approximately 50 for each subject)  
+timepass: time in minutes beginning with 0 at time point 1  
+
+##Results
+
+##Discussion
