@@ -1,8 +1,8 @@
 ---
-title: "Evaluating Causes of High Blood Pressure in Nurses"
+title: "Work"
 author: "Trevor Freeland"
 date: "April 25, 2018"
-output: pdf_document
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
@@ -18,23 +18,6 @@ library(pander)
 ```{r Data Read}
 nurses <- read.csv("http://math.carleton.edu/Chihara/Stats345/nursebp.csv")
 ```
-
-##Question
-
-UCLA Nurse Blood Pressure Study.
- 
-Using systolic blood pressure as the primary response, write a short report detailing factors that are significantly associated with higher systolic blood pressure. Be sure to support your conclusions with appropriate exploratory plots and multilevel models. In particular, how are work conditions—activity level, mood, and work status—related to trends in blood pressure levels? As an appendix to your report, describe your modeling process—how did you arrive at your final model, which covariates are Level One or Level Two covariates, what did you learn from exploratory plots, etc.
-
-
-##Introduction
-
-A study by Goldstein and Shapiro (2000) collected information from 203 registered nurses in the Los Angeles area between 24 and 50 years of age on blood pressure and potential factors that contribute to hypertension. Using the information collected by Goldstein and Shapiro we are investigating what factors are significantly associated with higher systolic blood pressure. Below we describe what specific factors we are examing.
-
-##Methods
-
-Data from this study provided by Weiss (2005) includes about 50 observations per nurse taken repeatedly on the nurses over the course of a single day. Blood pressure was measured a half hour before the nurse's shift began, and was taken at apporximately 20 minute intervals throughout the rest of the day. At each blood pressure reading, the nurses also rated their mood on several dimensions and the activity of each subject during the 10 minutes before each reading was measured using an actigraph worn on the waist. 
-
-Each of the variables is described below:
 
 SNUM: subject ID 
 SYS: systolic blood pressure (mmHg) (**Response Variable**) 
@@ -67,4 +50,16 @@ summary.stats <- summary(nurses)
 pander(summary.stats)
 ```
 
-##Discussion
+```{r}
+#unconditional means model
+model.means <- lmer(SYS~(1|SNUM), data = nurses)
+summary(model.means)
+#Intraclass Cor
+cor.intra <- 65/(65+166)
+#unconditional growth model
+model.growth <- lmer(SYS~timept+(1|SNUM), data = nurses)
+summary(model.growth)
+#Change.in.resid 
+resid.change <- .4/166.63 #miniscule
+#First model
+```
