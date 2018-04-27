@@ -31,19 +31,19 @@ Each of the variables used in our model selection process is described below:
 
 SNUM: subject ID 
 SYS: systolic blood pressure (mmHg) (**Response Variable**) 
-HRT: heart rate (beats per minute) / 10 for scaling
-MNACT5: activity level (frequency of movements in 1-minute intervals, over a 10-minute period )  / 10 for scaling.
+HRT: heart rate (beats per minute) / 10 for scaling purposes for our model.
+MNACT5: activity level (frequency of movements in 1-minute intervals, over a 10-minute period )  / 10 for scaling purposes for our model.
 PHASE: menstrual phase (follicular—beginning with the end of menstruation and ending with ovulation, or luteal—beginning with ovulation and ending with pregnancy or menstruation)  
 DAY: workday or non-workday  
 POSTURE: position during blood pressure measurement—either sitting, standing, or reclining  
 STR, HAP, TIR: self-ratings by each nurse of their level of stress, happiness and tiredness at the time of each blood pressure measurement on a 5-point scale, with 5 being the strongest sensation of that feeling and 1 the weakest  
-AGE: age in years / 10 for scaling purposes.  
+AGE: age in years / 10 for scaling purposes in our model.  
 FH123: coded as either NO (no family history of hypertension), YES (1 hypertensive parent), or YESYES (both parents hypertensive)  
-timept: number of the measurement that day (approximately 50 for each subject)  Starting at 0 and increasing by .1 for every measurement for scaling.
+timept: number of the measurement that day (approximately 50 for each subject)  Starting at 0 and increasing by .1 for every measurement for scaling for our model.
 
 ##Results
 
-Before we began to fit a model needed to do some initial exploration of our data. Our first step in that process was to examine summary statistics for our data. In Table 1 below we can notice that Some of our numeric variables are on vastly different scales. 
+Before we began to fit a model needed to do some initial exploration of our data. Our first step in that process was to examine summary statistics for our data. In Table 1 below we can notice that Some of our numeric variables are on vastly different scales, especially noticing that the emotional scales only go from 1-5, whereas heart rate, activity, age and time stamps are all significant'y larger than that. We decided for our analysis and for our model we would divide all of those four variables by 10. This prevented us from noticing any 
 
 ```{r}
 nurses <- read.csv("http://math.carleton.edu/Chihara/Stats345/nursebp.csv")
