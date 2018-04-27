@@ -55,6 +55,21 @@ nurses <- filter(nurses, POSTURE != "")
 nurses$POSTURE <- factor(nurses$POSTURE)
 summary.stats <- as.tibble(summary(nurses)) 
 pander(summary(nurses))
+
+#Should look to rescale variables. HRT and MNACT5, maybe AGE
+
+nurses$HRT <- nurses$HRT/10
+nurses$MNACT5 <- nurses$MNACT5/10
+nurses$AGE <- nurses$AGE/10
+nurses$timept <- nurses$timept/10
+```
+
+```{r}
+#EDA
+cbPalette <- c("#000000", "#E69F00")
+ggplot(nurses, aes(y = SYS, x = HRT)) + geom_point() + stat_smooth(method="lm") + facet_grid(.~POSTURE) + scale_colour_manual(values=cbPalette)
+
+ggplot(nurses, aes(y = SYS, x = timept*10, group = SNUM)) + stat_smooth(method="lm", se=FALSE, aes(color=factor(SNUM))) + theme(legend.position = "none") + xlab("Measurement Number") + ylab("Systolic Blood Pressure (mmHg)") +ggtitle("Spaghetti Plots of Nurses Blood Pressure Over the Day")
 ```
 
 
@@ -70,16 +85,10 @@ summary(model.growth)
 #Change.in.resid 
 resid.change <- .6/166.63 #miniscule change
 
-#Should look to rescale variables. HRT and MNACT5, maybe AGE
-
-#heart rate and activity could be highly correlated
+```
 
 
-nurses$HRT <- nurses$HRT/10
-nurses$MNACT5 <- nurses$MNACT5/10
-nurses$AGE <- nurses$AGE/10
-nurses$timept <- nurses$timept/10
-
+```{r}
 #Base model -> All of our fixed effects with full interactions and an Age and time random slope effect
 
 
@@ -201,7 +210,7 @@ nurses[index2,]
 ```
 
 ```{r}
-#trying to re run model taking out high leverage and high cooks distance points
+#trying to re run model taking out high cooks distance points (some of the high leverage points were also large cooks distance points so I wanted to take out the cooks distance points first to see any effect)
 nurses.test <- nurses[-index1,]
 model.test <- lmer(SYS~(DAY*AGE)+(HRT+HAP+STR+DAY+MNACT5)*POSTURE + (PHASE)*MNACT5 + (FH123)*timept + (timept|SNUM) , data = nurses.test, REML = F)
 summary(model.test)
@@ -279,42 +288,3 @@ $\mu_i, \omega_i$~BivariateNormal means = [0,0] \[
    \sigma_{12}  & \sigma_2^2  \\
   \end{array} } \right]
 \]
-Stuff I need:
-
-```{r, eval = T}
-nurses <- read.csv("http://math.carleton.edu/Chihara/Stats345/nursebp.csv")
-nurses.no.na <- na.omit(nurses)
-nurses <- nurses.no.na %>% filter(SNUM != 1046)
-nurses <- filter(nurses, POSTURE != "")
-nurses$POSTURE <- factor(nurses$POSTURE)
-nurses$HRT <- nurses$HRT/10
-nurses$MNACT5 <- nurses$MNACT5/10
-nurses$AGE <- nurses$AGE/10
-nurses$timept <- nurses$timept/10
-
-nurses.stats <- nurses %>% select(-c(DIA, time, timepass))
-pander(summary(nurses.stats))
-
-
-model11 <- lmer(SYS~(DAY*AGE)+(HRT+HAP+STR+DAY+MNACT5)*POSTURE + (PHASE)*MNACT5 + (FH123)*timept + (timept|SNUM) , data = nurses, REML = F)
-cd <- cooks.distance(model11)
-index1 <- which(cd>.004)
-nurses.test <- nurses[-index1,]
-model.a <- lmer(SYS~(DAY*AGE)+(HRT+HAP+MNACT5)*POSTURE + (PHASE)*MNACT5 + (FH123)*timept + (timept|SNUM) , data = nurses.test, REML = F)
-```
-
-```{r, eval = T}
-stargazer(model.a, type = "text")
-```
-
-```{r, eval = F}
-sjt.lmer(model.a, p.kr=F)
-```
-
-```{r}
-#EDA
-cbPalette <- c("#000000", "#E69F00")
-ggplot(nurses, aes(y = SYS, x = HRT)) + geom_point() + stat_smooth(method="lm") + facet_grid(.~POSTURE) + scale_colour_manual(values=cbPalette)
-
-ggplot(nurses, aes(y = SYS, x = timept*10, group = SNUM)) + stat_smooth(method="lm", se=FALSE, aes(color=factor(SNUM))) + theme(legend.position = "none") + xlab("Measurement Number") + ylab("Systolic Blood Pressure (mmHg)") +ggtitle("Spaghetti Plots of Nurses Blood Pressure Over the Day")
-```

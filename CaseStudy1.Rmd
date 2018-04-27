@@ -19,6 +19,19 @@ library(stargazer)
 library(HLMdiag)
 ```
 
+```{r, Data Cleaning}
+nurses <- read.csv("http://math.carleton.edu/Chihara/Stats345/nursebp.csv")
+nurses.no.na <- na.omit(nurses)
+nurses <- nurses.no.na %>% filter(SNUM != 1046)
+nurses <- filter(nurses, POSTURE != "")
+nurses$POSTURE <- factor(nurses$POSTURE)
+nurses.stats <- nurses %>% select(-c(DIA, time, timepass))
+nurses$HRT <- nurses$HRT/10
+nurses$MNACT5 <- nurses$MNACT5/10
+nurses$AGE <- nurses$AGE/10
+nurses$timept <- nurses$timept/10
+```
+
 ##Introduction
 
 A study by Goldstein and Shapiro (2000) collected information from 203 registered nurses in the Los Angeles area between 24 and 50 years of age on blood pressure and potential factors that contribute to hypertension. Using the information collected by Goldstein and Shapiro we are investigating what factors are significantly associated with higher systolic blood pressure. Researchers were initially interested to see if factors like family history of hypertension or menstrual phase were associated with increased blood pressure levels. Below we describe all specific variables that we are examing.
@@ -27,41 +40,66 @@ A study by Goldstein and Shapiro (2000) collected information from 203 registere
 
 Data from this study provided by Weiss (2005) includes about 50 observations per nurse taken repeatedly on the nurses over the course of a single day. Blood pressure was measured a half hour before the nurse's shift began, and was taken at apporximately 20 minute intervals throughout the rest of the day. At each blood pressure reading, the nurses also rated their mood on several dimensions and the activity of each subject during the 10 minutes before each reading was measured using an actigraph worn on the waist. 
 
-Each of the variables used in our model selection process is described below:
+Each of the variables used in our initial model selection process is described below:
 
 SNUM: subject ID 
-SYS: systolic blood pressure (mmHg) (**Response Variable**) 
-HRT: heart rate (beats per minute) / 10 for scaling purposes for our model.
-MNACT5: activity level (frequency of movements in 1-minute intervals, over a 10-minute period )  / 10 for scaling purposes for our model.
+SYS: systolic blood pressure (mmHg) (**Response Variable**)  
+HRT: heart rate (beats per minute) / 10 for scaling purposes for our model.  
+MNACT5: activity level (frequency of movements in 1-minute intervals, over a 10-minute period )  / 10 for scaling purposes for our model.  
 PHASE: menstrual phase (follicular—beginning with the end of menstruation and ending with ovulation, or luteal—beginning with ovulation and ending with pregnancy or menstruation)  
 DAY: workday or non-workday  
 POSTURE: position during blood pressure measurement—either sitting, standing, or reclining  
 STR, HAP, TIR: self-ratings by each nurse of their level of stress, happiness and tiredness at the time of each blood pressure measurement on a 5-point scale, with 5 being the strongest sensation of that feeling and 1 the weakest  
 AGE: age in years / 10 for scaling purposes in our model.  
 FH123: coded as either NO (no family history of hypertension), YES (1 hypertensive parent), or YESYES (both parents hypertensive)  
-timept: number of the measurement that day (approximately 50 for each subject)  Starting at 0 and increasing by .1 for every measurement for scaling for our model.
+timept: number of the measurement that day (approximately 50 for each subject)  Starting at 0 and increasing by .1 for every measurement for scaling for our model.  
 
 ##Results
 
-Before we began to fit a model needed to do some initial exploration of our data. Our first step in that process was to examine summary statistics for our data. In Table 1 below we can notice that Some of our numeric variables are on vastly different scales, especially noticing that the emotional scales only go from 1-5, whereas heart rate, activity, age and time stamps are all significant'y larger than that. We decided for our analysis and for our model we would divide all of those four variables by 10. This prevented us from noticing any 
+Before we began to fit a model needed to do some initial exploration of our data. Our first step in that process was to examine summary statistics for our data. In Table 1 below we can notice that Some of our numeric variables are on vastly different scales, especially noticing that the emotional scales only go from 1-5, whereas heart rate, activity, age and time stamps are all significantly larger than that. We decided for our analysis and for our model we would divide all of those four variables by 10. After scaling these four variables we did not get any scaling warnings with our models. 
 
 ```{r}
-nurses <- read.csv("http://math.carleton.edu/Chihara/Stats345/nursebp.csv")
-nurses.no.na <- na.omit(nurses)
-nurses <- nurses.no.na %>% filter(SNUM != 1046)
-nurses <- filter(nurses, POSTURE != "")
-nurses$POSTURE <- factor(nurses$POSTURE)
-nurses <- nurses %>% select(-c(DIA, time, timepass))
-pander(summary(nurses))
-```
-
-
-```{r}
-nurses$HRT <- nurses$HRT/10
-nurses$MNACT5 <- nurses$MNACT5/10
-nurses$AGE <- nurses$AGE/10
-nurses$timept <- nurses$timept/10
 pander(summary(nurses.stats))
 ```
 
+Before we chose our initial model we wanted to keep exploring the data. In Figure 1 we looked at heart rates effect on blood pressure while the nurse was in different positions while have her blood pressure taken. Overall we can see that as heart rate increases blood pressure appears to be increasing. However it appears that the different positions that the nurse was in when the blood pressure was measured changes the effect of heart rate on blood pressure, modst notably heart rate seems to have a larger effect on blood pressure if the nurse is sitting down compared to reclining or standing. Because of this we wanted to make sure we accounted for possible interactions between these variables and our other variables in the model.
+
+```{r}
+#EDA
+cbPalette <- c("#000000", "#E69F00")
+ggplot(nurses.stats, aes(y = SYS, x = HRT)) + geom_point() + stat_smooth(method="lm") + facet_grid(.~POSTURE) + scale_colour_manual(values=cbPalette) + ylab("Systolic Blood Pressure (mmHg)") + ggtitle("Interactions of Posture and Heart Rate on Blood Pressure") + xlab("Heart Rate (bpm)")
+```
+
+Figure 2 is a spaghetti plot that is showing the different effects of time on the individual nurses. As you can see from the figure, there appear to be individual intercepts and slopes for each nurse when considering the effect of time on their blood pressure levels. This plot shows us that we should consider having random intercepts and possibly random slopes for the effect of time on the blood pressure for each nurse. 
+
+```{r}
+ggplot(nurses, aes(y = SYS, x = timept*10, group = SNUM)) + stat_smooth(method="lm", se=FALSE, aes(color=factor(SNUM))) + theme(legend.position = "none") + xlab("Measurement Number") + ylab("Systolic Blood Pressure (mmHg)") +ggtitle("Spaghetti Plots of Nurses Blood Pressure Over the Day")
+```
+
+After examining our data both numerically and visually we thought we had a good general picture of the data and so we began our model fitting process. Based on our exploration of the data our initial model included all of the fixed effects described in our methods section, with all of their possible interactions, random slopes for time and age and a random intercept. Through our model selection process we determined that we did not need the random slope for age but that both the random intercept and random slope over time was neccesary. 
+
+After deciding upon the random effects and narrowing down our fixed effects we were believed we had a final model. However when we ran diagnostics there were some clear outliers and so we wanted to investigate what would happen if we took the outliers out of our data. Our model without the outliers actually changed a significant amount. After taking out the outliers the effects of the nurses stress level no longer appeared significant. When examining the data that we left out most of them had stress levels of 4 or 5. When looking back to our table of summary statistics we can see that the mean and median for the stress variable (STR) is very low. So the few people with an extremely high stress value could have been giving that variable far more significance than it should have had. 
+
+We decided to stick with the data that did not have those outliers so we need to recheck and re-narrow down our model. After re-narrowing down our model we again ran diagnostics and diagnostics signified that there still might be some outliers that could be effecting our model, however after fitting our model with the outliers subsetted out, our estimates did not change significanly, so we left this second set of potential outliers in our model and came to the final model below:
+
+
+(Insert Picture of final model formulation here)
+
+Our estimates for our model can be seen in Table 2 below.
+
+(Insert picture of table)
+
+
 ##Discussion
+
+Interpretations of some of our estimates:
+
+Holding everything else constant, if a nurse is working her systolic blood pressure is on average 17.42 mmHg more than if they were not working that day. 
+
+Holding everything else constanst, a nurse that is 10 years older will have on average systolic blood pressure 3.21 mmHg larger than a nurse that is 10 years younger then them. 
+
+Holding eveything else constant, having both parents with hypertensive is associated with an average blood pressure increase of 6 mmHg compared to someone who had neither parents hypertensive.
+
+Overall it does appear that blood pressure is linked to family history, working status, mood and menstrual phase, either directly or indirectly through interactions with other variables. 
+
+Some of the limitations of this analysis is that is will always be dependent on the intial model. If someone's intial model would not have included any interactions and possibly included more random effects then they could have came to different conclussions. Also is the point of this study was to examine the effects of family history, work day ect on blood pressure in everyone/in general then we would need to expand our data since this data was confined to just nurses in the LA area. There could be some effects based on the type of people who are nurses or living in and around LA that we aren't able to account for in this study with the data provided. With this in mind next steps might be to expand our data beyond either the same job or geographically to address any of those variables that could be confounding some of our results. 
