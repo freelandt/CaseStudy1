@@ -2,17 +2,23 @@
 title: "Work"
 author: "Trevor Freeland"
 date: "April 25, 2018"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, comment = NA, message = F, warning = F, fig.height = 4)
+knitr::opts_chunk$set(echo = FALSE, comment = NA, message = F, warning = F, eval = F, fig.height = 4)
 ```
 
-```{r Libraries}
+```{r Libraries, eval = T}
 library(tidyverse)
 library(lme4)
 library(pander)
+library(HLMdiag)
+library(stargazer)
+library(sjPlot)
 ```
 
 ```{r Data Read}
@@ -43,23 +49,272 @@ nurses.no.na <- na.omit(nurses)
 nurses.na <- anti_join(nurses, nurses.no.na)
 #If we delete observations with NA's, are we going to have too few observations for someone
 temp <- nurses.no.na %>% group_by(SNUM) %>% summarize(n=n())
-sort(temp$n)
 #1046 only has 6 observations, going to exlcude because it might throw off time variable.
 nurses <- nurses.no.na %>% filter(SNUM != 1046)
-summary.stats <- summary(nurses) 
-pander(summary.stats)
+nurses <- filter(nurses, POSTURE != "")
+nurses$POSTURE <- factor(nurses$POSTURE)
+summary.stats <- as.tibble(summary(nurses)) 
+pander(summary(nurses))
 ```
+
 
 ```{r}
 #unconditional means model
 model.means <- lmer(SYS~(1|SNUM), data = nurses)
 summary(model.means)
 #Intraclass Cor
-cor.intra <- 65/(65+166)
+cor.intra <- 66/(66+166)
 #unconditional growth model
 model.growth <- lmer(SYS~timept+(1|SNUM), data = nurses)
 summary(model.growth)
 #Change.in.resid 
-resid.change <- .4/166.63 #miniscule
-#First model
+resid.change <- .6/166.63 #miniscule change
+
+#Should look to rescale variables. HRT and MNACT5, maybe AGE
+
+#heart rate and activity could be highly correlated
+
+
+nurses$HRT <- nurses$HRT/10
+nurses$MNACT5 <- nurses$MNACT5/10
+nurses$AGE <- nurses$AGE/10
+nurses$timept <- nurses$timept/10
+
+#Base model -> All of our fixed effects with full interactions and an Age and time random slope effect
+
+
+model.full <- lmer(SYS~(HRT + MNACT5 + PHASE + DAY + POSTURE + STR + HAP + TIR + AGE + FH123 + timept)^2 +  (AGE + timept|SNUM) , data = nurses)
+summary(model.full)
+model1 <- lmer(SYS~(HRT + MNACT5 + PHASE + DAY + POSTURE + STR + HAP + TIR + AGE + FH123 + timept)^2 +  (timept|SNUM) , data = nurses)
+summary(model1)
+
+l0 <- logLik(model1)
+l1 <- logLik(model.full)
+D <- 2*as.numeric(l1-l0)
+.5*(1-pchisq(D,3)) + .5*(1-pchisq(D,2))
+#We can drop the AGE random slop
+
+model2 <- lmer(SYS~(HRT + MNACT5 + PHASE + DAY + POSTURE + STR + HAP + TIR + AGE + FH123 + timept)^2 +  (1|SNUM) , data = nurses)
+summary(model2)
+
+l0 <- logLik(model2)
+l1 <- logLik(model1)
+D <- 2*as.numeric(l1-l0)
+.5*(1-pchisq(D,2)) + .5*(1-pchisq(D,1))
+#We cannot drop the random slope for time
+#Sticking with model 1, random slope on time
+```
+
+```{r}
+#Fixed Effcets time
+
+model1 <- lmer(SYS~(HRT + MNACT5 + PHASE + DAY + POSTURE + STR + HAP + TIR + AGE + FH123 + timept)^2 +  (timept|SNUM) , data = nurses, REML = F)
+summary(model1)
+
+#Do we need any interactions?
+model2 <- lmer(SYS~(HRT + MNACT5 + PHASE + DAY + POSTURE + STR + HAP + TIR + AGE + FH123 + timept) +  (timept|SNUM) , data = nurses, REML = F)
+anova(model1,model2)
+#Yeah there is something in there that we need.
+
+model3 <- lmer(SYS~(PHASE + MNACT5 + DAY + POSTURE + STR + HAP + TIR + AGE + FH123 + timept)^2 + (HRT*POSTURE) +  (timept|SNUM) , data = nurses, REML = F)
+anova(model3, model1)
+summary(model3)
+
+#HRT only had a few sig interactions
+
+model4 <- lmer(SYS~(PHASE*MNACT5) + (MNACT5 + DAY + POSTURE + STR + HAP + TIR + AGE + FH123 + timept)^2 + (HRT*POSTURE) +  (timept|SNUM) , data = nurses, REML = F)
+anova(model3, model4)
+summary(model4)
+
+#PHASE only had 1 sig intercation.
+
+model5 <- lmer(SYS~(MNACT5 +  POSTURE + STR + HAP + TIR + AGE + FH123 + timept)^2 + (DAY * AGE) + (HRT + DAY)*POSTURE + (PHASE*MNACT5) + (timept|SNUM) , data = nurses, REML = F)
+anova(model4, model5)
+summary(model5)
+
+#Day needs interaction with age and posture
+
+model6 <- lmer(SYS~(HAP+MNACT5+POSTURE+TIR+AGE+FH123+timept)^2+(DAY*AGE)+(HRT+STR+DAY)*POSTURE + (PHASE*MNACT5) + (timept|SNUM) , data = nurses, REML = F)
+anova(model6, model5)
+summary(model6)
+
+#STR needed Posture
+
+model7 <- lmer(SYS~(MNACT5+POSTURE+TIR+AGE+FH123+timept)^2+(DAY*AGE)+(HRT+HAP+STR+DAY)*POSTURE + (PHASE)*MNACT5 + (timept|SNUM) , data = nurses, REML = F)
+anova(model6, model7)
+summary(model7)
+
+#HAP needs Posture
+
+model8 <- lmer(SYS~(AGE+FH123+MNACT5+POSTURE+timept)^2+(DAY*AGE)+(HRT+HAP+STR+DAY)*POSTURE + (PHASE)*MNACT5 + (timept|SNUM) , data = nurses, REML = F)
+anova(model8, model7)
+summary(model8)
+
+#TIR unneccesary
+
+model9 <- lmer(SYS~(MNACT5+POSTURE+timept)^2+(DAY*AGE)+(HRT+HAP+STR+DAY)*POSTURE + (PHASE)*MNACT5 + (FH123)*timept + (timept|SNUM) , data = nurses, REML = F)
+anova(model8, model9)
+summary(model9)
+
+#FH123 only needs time interaction.
+
+model10 <- lmer(SYS~(MNACT5+POSTURE)^2+(DAY*AGE)+(HRT+HAP+STR+DAY)*POSTURE + (PHASE)*MNACT5 + (FH123)*timept + (timept|SNUM) , data = nurses, REML = F)
+anova(model10, model9)
+summary(model10)
+
+#timept only needs interaction with FH123
+
+model11 <- lmer(SYS~(DAY*AGE)+(HRT+HAP+STR+DAY+MNACT5)*POSTURE + (PHASE)*MNACT5 + (FH123)*timept + (timept|SNUM) , data = nurses, REML = F)
+anova(model10, model11)
+summary(model11)
+
+#I think that is the model I am going to stick with
+```
+
+```{r}
+# Diagnostics
+model11 <- lmer(SYS~(DAY*AGE)+(HRT+HAP+STR+DAY+MNACT5)*POSTURE + (PHASE)*MNACT5 + (FH123)*timept + (timept|SNUM) , data = nurses, REML = F)
+x2 <- HLMresid(model11, level = 1, standardize = TRUE)
+plot(fitted(model11), x2, ylab = "Conditional Residual")
+#There appears to be some potential outliers with high fitted values
+```
+
+```{r}
+x <- HLMresid(model11, level="marginal",standardize=TRUE)
+plot(x~fitted(model11), ylab = "Marginal Residual")
+abline(h=3)
+abline(h=-3)
+#There appears to be some potential outliers
+```
+
+```{r}
+cd <- cooks.distance(model11)
+dotplot_diag(cd,cutoff="internal", name="cooks.distance")
+index1 <- which(cd>.004)
+```
+
+```{r}
+lev <- leverage(model11, level = 1)
+dotplot_diag(lev[,1],cutoff="internal",name="leverage")
+index2 <- lev[,1] > .1
+nurses[index2,]
+```
+
+```{r}
+#trying to re run model taking out high leverage and high cooks distance points
+nurses.test <- nurses[-index1,]
+model.test <- lmer(SYS~(DAY*AGE)+(HRT+HAP+STR+DAY+MNACT5)*POSTURE + (PHASE)*MNACT5 + (FH123)*timept + (timept|SNUM) , data = nurses.test, REML = F)
+summary(model.test)
+summary(model11)
+
+#Taking away the large cooks distance values greatly change the model. So we should evaluate the model without them. 
+
+model.a <- lmer(SYS~(DAY*AGE)+(HRT+HAP+MNACT5)*POSTURE +DAY + (PHASE)*MNACT5 + (FH123)*timept + (timept|SNUM) , data = nurses.test, REML = F)
+anova(model.a, model.test)
+summary(model.a)
+
+#took out STR all together and Day interactions with Posture
+
+model.b <- lmer(SYS~(DAY*AGE)+HRT+(HAP+MNACT5)*POSTURE +DAY + (PHASE)*MNACT5 + (FH123)*timept + (timept|SNUM) , data = nurses.test, REML = F)
+anova(model.a, model.b)
+summary(model.b)
+
+#Can't take out HRT:Posture interactions so model.a looks like new model. Lets re-check diagnostics
+```
+
+```{r}
+# Diagnostics
+x2 <- HLMresid(model.a, level = 1, standardize = TRUE)
+plot(fitted(model.a), x2, ylab = "Conditional Residual")
+#This plot looks more or less the same as the last one. Maybe slightly fewer outliers?
+```
+
+```{r}
+x <- HLMresid(model.a, level="marginal",standardize=TRUE)
+plot(x~fitted(model.a), ylab = "Marginal Residual")
+abline(h=3)
+abline(h=-3)
+#There still appears to be some potential outliers, again maybe a few less.
+```
+
+```{r}
+cd <- cooks.distance(model.a)
+dotplot_diag(cd,cutoff="internal", name="cooks.distance")
+index1 <- which(cd>.001)
+```
+
+```{r}
+lev <- leverage(model.a, level = 1)
+dotplot_diag(lev[,1],cutoff="internal",name="leverage")
+index2 <- lev[,1] > .1
+nurses.test[index2,]
+nurses.test[index1,]
+
+nurses.test2 <- nurses.test[-index1,]
+
+model.a <- lmer(SYS~(DAY*AGE)+(HRT+HAP+MNACT5)*POSTURE + (PHASE)*MNACT5 + (FH123)*timept + (timept|SNUM) , data = nurses.test, REML = F)
+model.test.a <- lmer(SYS~(DAY*AGE)+(HRT+HAP+MNACT5)*POSTURE + (PHASE)*MNACT5 + (FH123)*timept + (timept|SNUM) , data = nurses.test, REML = F)
+anova(model.a,model.test.a)
+summary(model.a)
+#our estimates don't change significantly after excluding this data, so we will keep it in the model. 
+#final model is model.a with nurses.test as the final data
+```
+
+Model:
+
+Level 1: $BloodPressure_{ij} = a_i + b_0(HeartRate) + c_0(Happiness) + d_i(Activity) + e_0(Stand) + f_0(Sit)$
+$+ g_i(time) + h_0(HeartRate:Stand) + h_1(HeartRate:Sit) + l_0(Happiness:Sit) + l_1(Happiness:Stand) +$
+$k_0(Activity:Sit) + k_1(Activity:Sit) + \epsilon_{ij}$
+
+Level 2: $a_i = a_0 + a_1(WorkDay) + a_2(Age) + a_3(Age:WorkDay) + a_4(PhaseL) + a_5(OneHyperPar) + a_6(TwoHyperPar) + \mu_i$
+
+$d_i = d_0 + d_1(PhaseL)$
+
+$g_i = g_0 + g_1(OneHyperPar) + g_2(TwoHyperPar) + \omega_i$
+
+$\mu_i, \omega_i$~BivariateNormal means = [0,0] \[
+   \Sigma = 
+  \left[ {\begin{array}{cc}
+   \sigma_1^2 & \sigma_{12} \\
+   \sigma_{12}  & \sigma_2^2  \\
+  \end{array} } \right]
+\]
+Stuff I need:
+
+```{r, eval = T}
+nurses <- read.csv("http://math.carleton.edu/Chihara/Stats345/nursebp.csv")
+nurses.no.na <- na.omit(nurses)
+nurses <- nurses.no.na %>% filter(SNUM != 1046)
+nurses <- filter(nurses, POSTURE != "")
+nurses$POSTURE <- factor(nurses$POSTURE)
+nurses$HRT <- nurses$HRT/10
+nurses$MNACT5 <- nurses$MNACT5/10
+nurses$AGE <- nurses$AGE/10
+nurses$timept <- nurses$timept/10
+
+nurses.stats <- nurses %>% select(-c(DIA, time, timepass))
+pander(summary(nurses.stats))
+
+
+model11 <- lmer(SYS~(DAY*AGE)+(HRT+HAP+STR+DAY+MNACT5)*POSTURE + (PHASE)*MNACT5 + (FH123)*timept + (timept|SNUM) , data = nurses, REML = F)
+cd <- cooks.distance(model11)
+index1 <- which(cd>.004)
+nurses.test <- nurses[-index1,]
+model.a <- lmer(SYS~(DAY*AGE)+(HRT+HAP+MNACT5)*POSTURE + (PHASE)*MNACT5 + (FH123)*timept + (timept|SNUM) , data = nurses.test, REML = F)
+```
+
+```{r, eval = T}
+stargazer(model.a, type = "text")
+```
+
+```{r, eval = F}
+sjt.lmer(model.a, p.kr=F)
+```
+
+```{r}
+#EDA
+cbPalette <- c("#000000", "#E69F00")
+ggplot(nurses, aes(y = SYS, x = HRT)) + geom_point() + stat_smooth(method="lm") + facet_grid(.~POSTURE) + scale_colour_manual(values=cbPalette)
+
+ggplot(nurses, aes(y = SYS, x = timept*10, group = SNUM)) + stat_smooth(method="lm", se=FALSE, aes(color=factor(SNUM))) + theme(legend.position = "none") + xlab("Measurement Number") + ylab("Systolic Blood Pressure (mmHg)") +ggtitle("Spaghetti Plots of Nurses Blood Pressure Over the Day")
 ```

@@ -2,7 +2,9 @@
 title: "Evaluating Causes of High Blood Pressure in Nurses"
 author: "Trevor Freeland"
 date: "April 25, 2018"
-output: pdf_document
+output:
+  word_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -13,58 +15,53 @@ knitr::opts_chunk$set(echo = FALSE, comment = NA, message = F, warning = F, fig.
 library(tidyverse)
 library(lme4)
 library(pander)
+library(stargazer)
+library(HLMdiag)
 ```
-
-```{r Data Read}
-nurses <- read.csv("http://math.carleton.edu/Chihara/Stats345/nursebp.csv")
-```
-
-##Question
-
-UCLA Nurse Blood Pressure Study.
- 
-Using systolic blood pressure as the primary response, write a short report detailing factors that are significantly associated with higher systolic blood pressure. Be sure to support your conclusions with appropriate exploratory plots and multilevel models. In particular, how are work conditions—activity level, mood, and work status—related to trends in blood pressure levels? As an appendix to your report, describe your modeling process—how did you arrive at your final model, which covariates are Level One or Level Two covariates, what did you learn from exploratory plots, etc.
-
 
 ##Introduction
 
-A study by Goldstein and Shapiro (2000) collected information from 203 registered nurses in the Los Angeles area between 24 and 50 years of age on blood pressure and potential factors that contribute to hypertension. Using the information collected by Goldstein and Shapiro we are investigating what factors are significantly associated with higher systolic blood pressure. Below we describe what specific factors we are examing.
+A study by Goldstein and Shapiro (2000) collected information from 203 registered nurses in the Los Angeles area between 24 and 50 years of age on blood pressure and potential factors that contribute to hypertension. Using the information collected by Goldstein and Shapiro we are investigating what factors are significantly associated with higher systolic blood pressure. Researchers were initially interested to see if factors like family history of hypertension or menstrual phase were associated with increased blood pressure levels. Below we describe all specific variables that we are examing.
 
 ##Methods
 
 Data from this study provided by Weiss (2005) includes about 50 observations per nurse taken repeatedly on the nurses over the course of a single day. Blood pressure was measured a half hour before the nurse's shift began, and was taken at apporximately 20 minute intervals throughout the rest of the day. At each blood pressure reading, the nurses also rated their mood on several dimensions and the activity of each subject during the 10 minutes before each reading was measured using an actigraph worn on the waist. 
 
-Each of the variables is described below:
+Each of the variables used in our model selection process is described below:
 
 SNUM: subject ID 
 SYS: systolic blood pressure (mmHg) (**Response Variable**) 
-DIA: diastolic blood pressure (mmHg)  
-HRT: heart rate (beats per minute)  
-MNACT5: activity level (frequency of movements in 1-minute intervals, over a 10-minute period )  
+HRT: heart rate (beats per minute) / 10 for scaling
+MNACT5: activity level (frequency of movements in 1-minute intervals, over a 10-minute period )  / 10 for scaling.
 PHASE: menstrual phase (follicular—beginning with the end of menstruation and ending with ovulation, or luteal—beginning with ovulation and ending with pregnancy or menstruation)  
 DAY: workday or non-workday  
 POSTURE: position during blood pressure measurement—either sitting, standing, or reclining  
 STR, HAP, TIR: self-ratings by each nurse of their level of stress, happiness and tiredness at the time of each blood pressure measurement on a 5-point scale, with 5 being the strongest sensation of that feeling and 1 the weakest  
-AGE: age in years  
+AGE: age in years / 10 for scaling purposes.  
 FH123: coded as either NO (no family history of hypertension), YES (1 hypertensive parent), or YESYES (both parents hypertensive)  
-time: in minutes from midnight  
-timept: number of the measurement that day (approximately 50 for each subject)  
-timepass: time in minutes beginning with 0 at time point 1  
+timept: number of the measurement that day (approximately 50 for each subject)  Starting at 0 and increasing by .1 for every measurement for scaling.
 
 ##Results
 
+Before we began to fit a model needed to do some initial exploration of our data. Our first step in that process was to examine summary statistics for our data. In Table 1 below we can notice that Some of our numeric variables are on vastly different scales. 
+
 ```{r}
-#What data has all entries
+nurses <- read.csv("http://math.carleton.edu/Chihara/Stats345/nursebp.csv")
 nurses.no.na <- na.omit(nurses)
-#What do the entries with NA have them in
-nurses.na <- anti_join(nurses, nurses.no.na)
-#If we delete observations with NA's, are we going to have too few observations for someone
-temp <- nurses.no.na %>% group_by(SNUM) %>% summarize(n=n())
-sort(temp$n)
-#1046 only has 6 observations, going to exlcude because it might throw off time variable.
 nurses <- nurses.no.na %>% filter(SNUM != 1046)
-summary.stats <- summary(nurses) 
-pander(summary.stats)
+nurses <- filter(nurses, POSTURE != "")
+nurses$POSTURE <- factor(nurses$POSTURE)
+nurses <- nurses %>% select(-c(DIA, time, timepass))
+pander(summary(nurses))
+```
+
+
+```{r}
+nurses$HRT <- nurses$HRT/10
+nurses$MNACT5 <- nurses$MNACT5/10
+nurses$AGE <- nurses$AGE/10
+nurses$timept <- nurses$timept/10
+pander(summary(nurses.stats))
 ```
 
 ##Discussion
